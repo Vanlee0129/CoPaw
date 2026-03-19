@@ -97,20 +97,44 @@ export default function AgentScopeRuntimeRequestCard(props: RequestCardProps) {
       .join("\n");
   }, [props.data.input]);
 
+  const hasTextContent = textContent.trim().length > 0;
+
   const handleCopy = async () => {
-    if (textContent) {
-      try {
+    if (!textContent) return;
+
+    try {
+      if (
+        typeof window !== "undefined" &&
+        window.isSecureContext &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
         await navigator.clipboard.writeText(textContent);
-        message.success(t?.("common.copied") || "Copied to clipboard");
-      } catch {
-        message.error(
-          t?.("common.copyFailed") || "Failed to copy to clipboard",
-        );
+      } else if (typeof document !== "undefined") {
+        const textArea = document.createElement("textarea");
+        textArea.value = textContent;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      } else {
+        throw new Error("Clipboard not supported");
       }
+      message.success(t?.("common.copied") || "Copied to clipboard");
+    } catch {
+      message.error(t?.("common.copyFailed") || "Failed to copy to clipboard");
     }
   };
 
   if (!cards?.length) return null;
+
+  // Only show copy button when there is text content
+  if (!hasTextContent) {
+    return <Bubble role="user" cards={cards} />;
+  }
 
   const copyAction = {
     icon: (
